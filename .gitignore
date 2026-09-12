@@ -1,0 +1,4 @@
+/ecr-image-scan-gate
+/dist/
+*.out
+*.test

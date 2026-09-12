@@ -1,0 +1,42 @@
+{
+  "imageScanStatus": { "status": "COMPLETE" },
+  "repositoryName": "my-service",
+  "imageId": { "imageTag": "1.4.2" },
+  "imageScanFindings": {
+    "findings": [
+      {
+        "name": "CVE-2023-0464",
+        "severity": "HIGH",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2023-0464",
+        "attributes": [
+          { "key": "package_name", "value": "openssl" },
+          { "key": "package_version", "value": "3.0.7-r0" }
+        ]
+      },
+      {
+        "name": "CVE-2022-4304",
+        "severity": "CRITICAL",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2022-4304",
+        "attributes": [
+          { "key": "package_name", "value": "openssl" },
+          { "key": "package_version", "value": "3.0.7-r0" }
+        ]
+      },
+      {
+        "name": "CVE-2021-3999",
+        "severity": "MEDIUM",
+        "attributes": [
+          { "key": "package_name", "value": "glibc" },
+          { "key": "package_version", "value": "2.35-r0" }
+        ]
+      },
+      {
+        "name": "CVE-2020-1234",
+        "severity": "LOW",
+        "attributes": [
+          { "key": "package_name", "value": "zlib" }
+        ]
+      }
+    ]
+  }
+}
