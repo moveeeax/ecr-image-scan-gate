@@ -3,7 +3,7 @@
 [![ci](https://github.com/moveeeax/ecr-image-scan-gate/actions/workflows/ci.yml/badge.svg)](https://github.com/moveeeax/ecr-image-scan-gate/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/moveeeax/ecr-image-scan-gate)](https://goreportcard.com/report/github.com/moveeeax/ecr-image-scan-gate)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![go](https://img.shields.io/badge/go-1.22-00ADD8.svg)](go.mod)
+[![go](https://img.shields.io/badge/go-1.26%2B-00ADD8.svg)](go.mod)
 
 A vulnerable image passes CI silently unless someone opens the scan tab in the
 console. `ecr-image-scan-gate` turns Amazon ECR image scan findings into an
@@ -20,6 +20,8 @@ console. `ecr-image-scan-gate` turns Amazon ECR image scan findings into an
 Exit codes: `0` clean, `1` gate tripped, `2` usage/runtime error.
 
 ## Install
+
+Requires Go 1.26 or newer.
 
 ```sh
 go install github.com/moveeeax/ecr-image-scan-gate/cmd/ecr-image-scan-gate@latest
