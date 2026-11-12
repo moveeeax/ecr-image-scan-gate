@@ -47,3 +47,12 @@ jobs:
             echo "expected exit 1 on tripped gate, got $code"; exit 1
           fi
           echo "gate correctly failed the build"
+      - name: Smoke test (gate trips on enhanced CRITICAL)
+        run: |
+          set +e
+          go run ./cmd/ecr-image-scan-gate scan --input examples/enhanced-findings.json --fail-on high
+          code=$?
+          if [ "$code" -ne 1 ]; then
+            echo "expected exit 1 on tripped gate, got $code"; exit 1
+          fi
+          echo "gate correctly failed the build on enhanced findings"

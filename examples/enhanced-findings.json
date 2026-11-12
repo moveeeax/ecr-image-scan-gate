@@ -1,0 +1,44 @@
+{
+  "imageScanStatus": {
+    "status": "ACTIVE",
+    "description": "Continuous scan is selected for image."
+  },
+  "repositoryName": "my-service",
+  "imageId": { "imageTag": "1.4.2" },
+  "imageScanFindings": {
+    "enhancedFindings": [
+      {
+        "title": "CVE-2022-4304 - openssl",
+        "description": "A timing based side channel exists in the OpenSSL RSA Decryption implementation.",
+        "severity": "CRITICAL",
+        "status": "ACTIVE",
+        "fixAvailable": "YES",
+        "score": 9.1,
+        "type": "PACKAGE_VULNERABILITY",
+        "packageVulnerabilityDetails": {
+          "vulnerabilityId": "CVE-2022-4304",
+          "source": "NVD",
+          "sourceUrl": "https://nvd.nist.gov/vuln/detail/CVE-2022-4304",
+          "vulnerablePackages": [
+            { "name": "openssl", "version": "3.0.7-r0", "fixedInVersion": "3.0.8-r0" }
+          ]
+        }
+      },
+      {
+        "title": "CVE-2021-3999 - glibc",
+        "severity": "MEDIUM",
+        "status": "ACTIVE",
+        "fixAvailable": "NO",
+        "score": 5.5,
+        "type": "PACKAGE_VULNERABILITY",
+        "packageVulnerabilityDetails": {
+          "vulnerabilityId": "CVE-2021-3999",
+          "sourceUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-3999",
+          "vulnerablePackages": [
+            { "name": "glibc", "version": "2.35-r0" }
+          ]
+        }
+      }
+    ]
+  }
+}
