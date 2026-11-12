@@ -128,6 +128,7 @@ func TestParseDump(t *testing.T) {
 	dump := `{
 	  "repositoryName": "my-service",
 	  "imageId": {"imageTag": "abc123"},
+	  "imageScanStatus": {"status": "COMPLETE"},
 	  "imageScanFindings": {
 	    "findings": [
 	      {"name": "CVE-2024-1111", "severity": "CRITICAL", "uri": "http://x",
@@ -136,13 +137,17 @@ func TestParseDump(t *testing.T) {
 	    ]
 	  }
 	}`
-	findings, repo, img, err := ParseDump(strings.NewReader(dump))
+	d, err := ParseDump(strings.NewReader(dump))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if repo != "my-service" || img != "abc123" {
-		t.Errorf("repo=%q img=%q", repo, img)
+	if d.Repository != "my-service" || d.ImageID != "abc123" {
+		t.Errorf("repo=%q img=%q", d.Repository, d.ImageID)
 	}
+	if d.Status != "COMPLETE" || len(d.Enhanced) != 0 {
+		t.Errorf("status=%q enhanced=%d", d.Status, len(d.Enhanced))
+	}
+	findings := d.Basic
 	if len(findings) != 2 {
 		t.Fatalf("len=%d want 2", len(findings))
 	}

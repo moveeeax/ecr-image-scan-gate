@@ -27,6 +27,17 @@ func RenderTable(w io.Writer, r Report) error {
 		}
 		b.WriteByte('\n')
 	}
+	if r.ScanType != "" || r.ScanStatus != "" {
+		scanType := r.ScanType
+		if scanType == "" {
+			scanType = "-"
+		}
+		fmt.Fprintf(&b, "Scan: %s", scanType)
+		if r.ScanStatus != "" {
+			fmt.Fprintf(&b, " (%s)", r.ScanStatus)
+		}
+		b.WriteByte('\n')
+	}
 
 	tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "SEVERITY\tCOUNT")
@@ -41,7 +52,20 @@ func RenderTable(w io.Writer, r Report) error {
 	if len(r.Top) > 0 {
 		b.WriteString("\nTop findings:\n")
 		tt := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(tt, "  SEVERITY\tCVE\tPACKAGE")
+		// Enhanced findings say whether a fixed version exists; show that
+		// column only when some finding carries it.
+		withFix := false
+		for _, f := range r.Top {
+			if f.FixAvailable != "" {
+				withFix = true
+				break
+			}
+		}
+		if withFix {
+			fmt.Fprintln(tt, "  SEVERITY\tCVE\tPACKAGE\tFIX")
+		} else {
+			fmt.Fprintln(tt, "  SEVERITY\tCVE\tPACKAGE")
+		}
 		for _, f := range r.Top {
 			pkg := f.Package
 			if f.Version != "" {
@@ -50,7 +74,15 @@ func RenderTable(w io.Writer, r Report) error {
 			if pkg == "" {
 				pkg = "-"
 			}
-			fmt.Fprintf(tt, "  %s\t%s\t%s\n", f.Severity, f.Name, pkg)
+			if withFix {
+				fix := f.FixAvailable
+				if fix == "" {
+					fix = "-"
+				}
+				fmt.Fprintf(tt, "  %s\t%s\t%s\t%s\n", f.Severity, f.Name, pkg, fix)
+			} else {
+				fmt.Fprintf(tt, "  %s\t%s\t%s\n", f.Severity, f.Name, pkg)
+			}
 		}
 		if err := tt.Flush(); err != nil {
 			return err

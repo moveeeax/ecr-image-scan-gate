@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -39,6 +40,9 @@ type scanFlags struct {
 	failOn    string
 	topN      int
 	allowlist []string
+	scanType  string
+	wait      time.Duration
+	startScan bool
 }
 
 func newScanCmd() *cobra.Command {
@@ -60,6 +64,9 @@ func newScanCmd() *cobra.Command {
 	f.StringVar(&fl.failOn, "fail-on", "high", "gate severity: critical|high|medium|low|informational|undefined")
 	f.IntVar(&fl.topN, "top", 10, "number of top findings to list")
 	f.StringSliceVar(&fl.allowlist, "allow", nil, "CVE ids to allowlist (repeatable or comma-separated)")
+	f.StringVar(&fl.scanType, "scan-type", "auto", "findings list to gate on: auto|basic|enhanced (auto: enhanced if non-empty, else basic)")
+	f.DurationVar(&fl.wait, "wait", 0, "poll up to this long until the scan is COMPLETE/ACTIVE and the finding count is stable, e.g. 10m (live mode)")
+	f.BoolVar(&fl.startScan, "start-scan", false, "call ecr:StartImageScan when the image has no scan yet; requires --wait (live mode)")
 	return cmd
 }
 
@@ -71,11 +78,25 @@ func runScan(ctx context.Context, cmd *cobra.Command, fl scanFlags) error {
 	if fl.output != "table" && fl.output != "json" {
 		return fmt.Errorf("unknown output %q (want table or json)", fl.output)
 	}
+	scanType, err := gate.ParseScanType(fl.scanType)
+	if err != nil {
+		return err
+	}
+	if fl.wait < 0 {
+		return fmt.Errorf("--wait must not be negative")
+	}
+	if fl.input != "" && (fl.wait > 0 || fl.startScan) {
+		return fmt.Errorf("--wait and --start-scan work in live mode only, not with --input")
+	}
+	if fl.startScan && fl.wait == 0 {
+		return fmt.Errorf("--start-scan requires --wait, a new scan is never finished on the first read")
+	}
 
 	var (
-		findings []gate.Finding
-		repo     = fl.repo
-		imageID  = fl.tag
+		basic, enhanced []gate.Finding
+		status          string
+		repo            = fl.repo
+		imageID         = fl.tag
 	)
 	if imageID == "" {
 		imageID = fl.digest
@@ -83,32 +104,50 @@ func runScan(ctx context.Context, cmd *cobra.Command, fl scanFlags) error {
 
 	switch {
 	case fl.input != "":
-		fs, r, img, perr := readDump(fl.input)
+		d, perr := readDump(fl.input)
 		if perr != nil {
 			return perr
 		}
-		findings = fs
+		basic, enhanced, status = d.Basic, d.Enhanced, d.Status
 		if repo == "" {
-			repo = r
+			repo = d.Repository
 		}
 		if imageID == "" {
-			imageID = img
+			imageID = d.ImageID
 		}
 	case fl.repo != "" && (fl.tag != "" || fl.digest != ""):
 		client, cerr := awsecr.New(ctx, fl.region)
 		if cerr != nil {
 			return cerr
 		}
-		fs, ref, ferr := client.Fetch(ctx, fl.repo, fl.tag, fl.digest)
-		if ferr != nil {
-			return ferr
+		var res awsecr.Result
+		if fl.wait > 0 {
+			res, err = client.Wait(ctx, fl.repo, fl.tag, fl.digest, awsecr.WaitOptions{
+				Timeout:   fl.wait,
+				StartScan: fl.startScan,
+			})
+		} else {
+			res, err = client.Fetch(ctx, fl.repo, fl.tag, fl.digest)
 		}
-		findings = fs
+		if err != nil {
+			return err
+		}
+		// Fail closed: an unfinished, failed or unsupported scan has empty or
+		// partial findings, so it must not pass the gate.
+		if err := gate.CheckStatus(res.Status, res.StatusDescription); err != nil {
+			return err
+		}
+		basic, enhanced, status = res.Basic, res.Enhanced, res.Status
 		if imageID == "" {
-			imageID = ref
+			imageID = res.Ref
 		}
 	default:
 		return fmt.Errorf("provide --input <dump.json>, or --repo with --tag/--digest for live mode")
+	}
+
+	findings, resolvedType, err := gate.SelectFindings(scanType, basic, enhanced)
+	if err != nil {
+		return err
 	}
 
 	rep := gate.Classify(findings, gate.Options{
@@ -117,6 +156,8 @@ func runScan(ctx context.Context, cmd *cobra.Command, fl scanFlags) error {
 		Allowlist:  splitAll(fl.allowlist),
 		Repository: repo,
 		ImageID:    imageID,
+		ScanType:   resolvedType,
+		ScanStatus: status,
 	})
 
 	w := cmd.OutOrStdout()
@@ -138,10 +179,10 @@ func runScan(ctx context.Context, cmd *cobra.Command, fl scanFlags) error {
 	return nil
 }
 
-func readDump(path string) ([]gate.Finding, string, string, error) {
+func readDump(path string) (gate.Dump, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, "", "", err
+		return gate.Dump{}, err
 	}
 	defer f.Close()
 	return gate.ParseDump(f)

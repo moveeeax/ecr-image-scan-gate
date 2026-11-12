@@ -106,12 +106,20 @@ type Finding struct {
 	Version     string   `json:"version,omitempty"`
 	URI         string   `json:"uri,omitempty"`
 	Description string   `json:"description,omitempty"`
+	// FixAvailable, Score and Status are set for enhanced (Amazon Inspector)
+	// findings only. FixAvailable is YES, NO or PARTIAL; Score is the
+	// Inspector score; Status is ACTIVE, SUPPRESSED or CLOSED.
+	FixAvailable string  `json:"fixAvailable,omitempty"`
+	Score        float64 `json:"score,omitempty"`
+	Status       string  `json:"status,omitempty"`
 }
 
 // Report is the full result of classifying a set of findings against a gate.
 type Report struct {
 	Repository string         `json:"repository,omitempty"`
 	ImageID    string         `json:"imageId,omitempty"`
+	ScanType   string         `json:"scanType,omitempty"`
+	ScanStatus string         `json:"scanStatus,omitempty"`
 	FailOn     string         `json:"failOn"`
 	Counts     map[string]int `json:"counts"`
 	Total      int            `json:"total"`
@@ -128,10 +136,16 @@ type Options struct {
 	Allowlist  []string // CVE ids that are accepted and never gate the build
 	Repository string
 	ImageID    string
+	ScanType   string // resolved scan type (BASIC or ENHANCED), report only
+	ScanStatus string // imageScanStatus.status, report only
 }
 
 // Classify aggregates findings by severity, applies the CVE allowlist, picks
 // the top-N most severe findings, and decides whether the gate is tripped.
+//
+// Enhanced findings carry an Inspector status: CLOSED findings (no longer
+// present in the image) are dropped, SUPPRESSED findings (matched by an
+// Inspector suppression rule) are counted as suppressed like allowlisted ones.
 //
 // It is a pure function: given the same findings and options it always returns
 // the same report, with no I/O. That is what makes the gate unit-testable
@@ -150,6 +164,13 @@ func Classify(findings []Finding, opts Options) Report {
 	suppressed := map[string]int{}
 	var gating []Finding
 	for _, f := range findings {
+		switch strings.ToUpper(f.Status) {
+		case "CLOSED":
+			continue
+		case "SUPPRESSED":
+			suppressed[f.Severity.String()]++
+			continue
+		}
 		if allow[strings.ToUpper(strings.TrimSpace(f.Name))] {
 			suppressed[f.Severity.String()]++
 			continue
@@ -191,6 +212,8 @@ func Classify(findings []Finding, opts Options) Report {
 	rep := Report{
 		Repository: opts.Repository,
 		ImageID:    opts.ImageID,
+		ScanType:   opts.ScanType,
+		ScanStatus: opts.ScanStatus,
 		FailOn:     opts.FailOn.String(),
 		Counts:     counts,
 		Total:      total,
